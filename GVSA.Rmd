@@ -1,0 +1,197 @@
+---
+title:"GSVA"
+output: html_document
+editor_options: 
+chunk_output_type: inline
+chunk_output_type: inline
+---
+
+######################## Set up for the analysis
+```{r Required Packages}
+
+library('viridis')
+library('RColorBrewer')
+library('dplyr')
+library('biomaRt')
+library('ggrepel')
+library('ggbeeswarm')
+library('patchwork')
+library("gprofiler2")
+library("biomaRt")
+library("reshape2")
+library("ggVennDiagram")
+library("wesanderson")
+library("parallel")
+library("magrittr")
+library("foreach")
+library("doParallel")
+library("GSVA")
+library("org.Hs.eg.db")
+
+```
+
+```{r Plot Themes}
+
+My_Theme = theme(
+  axis.title.x = element_text(size = 16),
+  axis.text.y = element_text(size = 14),
+  axis.text.x = element_text(size = 14),
+  axis.title.y = element_text(size = 16))
+
+```
+
+
+
+######################## Call the functions
+```{r Clean the dataframe}
+
+expr_data <- hgnc_annot(geneCountsMerged)
+
+```
+
+```{r Create the gene set list}
+
+bp_ctra = read_geneset_CTRA("/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Data Frames/Ontology df/GO_Biological_Process_2021.txt")
+
+```
+
+
+
+######################## Run the GSVA 
+```{r GSVA Analysis -- conducts a gene set variation analysis}
+
+GSVA_results <- run_GSVA(expr_data, bp_ctra, METADATA)
+
+```
+
+
+
+######################## Volanno Plots of the GSVA
+```{r Volcano Plot - Reported Race}
+
+volcano_race <- plot_volcano_race(GSVA_results$GSVA_race, xlim = c(-5, 5), ylim = c(0, 18))
+print(volcano_race)
+
+ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+
+```
+
+```{r Volcano Plot - Interaction}
+
+volcano_inter <- plot_volcano_inter(GSVA_results$GSVA_inter, xlim = c(-0.6, 0.6), ylim = c(0, 11))
+print(volcano_inter)
+
+ggsave('volcano_inter.png', width = 7.5, height = 7, path = "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction/Mega-Analysis")
+
+```
+
+
+######################## Violin Plots of Gene Sets
+```{r Plot violin plots of gene sets - Reported Race}
+
+race_enrichment_scores <- plot_enrichment_race(GSVA_results$GSVA_race, 
+                                           as.data.frame(GSVA_results$normalized_scores), 
+                                           METADATA, 
+                                           pathways = c("regulation of neuronal synaptic plasticity (GO:0048168)",
+                                                        "regulation of postsynaptic neurotransmitter receptor activity (GO:0098962)",
+                                                        "regulation of hydrogen peroxide-induced cell death (GO:1903205)",
+                                                        "body fluid secretion (GO:0007589)"))
+race_enrichment_scores
+
+ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+
+```
+
+```{r Plot violin plots of gene sets}
+
+inter_enrichment_scores <- plot_enrichment_interaction(GSVA_results$GSVA_inter, 
+                                           as.data.frame(GSVA_results$normalized_scores), 
+                                           METADATA, 
+                                           pathways = c("electron transport chain (GO:0022900)",
+                                                        "negative regulation of osteoclast differentiation (GO:0045671)",
+                                                        "aspartate family amino acid catabolic process (GO:0009068)",
+                                                        "organonitrogen compound biosynthetic process (GO:1901566)"))
+
+inter_enrichment_scores
+
+ggsave("inter_enrichment_scores.png", width = 9, height = 8, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction")
+
+```
+
+
+
+######################## Effect Sizes 
+```{r Plot CTRA effect sizes}
+
+ctra_race <- GSVA_results$GSVA_race %>% tibble::rownames_to_column("Pathway")
+ctra_race = ctra_race %>% 
+  dplyr::filter(Pathway %in% c( "proinflammation","interferon")) 
+ctra_race$term <- "race term effect size"
+
+ctra_inter <- GSVA_results$GSVA_inter %>% tibble::rownames_to_column("Pathway")
+ctra_inter = ctra_inter %>% 
+  dplyr::filter(Pathway %in% c( "proinflammation","interferon")) 
+ctra_inter$term <- "interaction term effect size"
+
+CTRA_set <- rbind(ctra_inter, ctra_race)
+
+plot_gsva <- ggplot(CTRA_set, aes(x = Pathway, y = logFC)) +  
+  scale_color_manual("#ffa500","	#ffd700") + facet_wrap(~term) +
+  geom_col() + theme_bw() + ylab("Standardized Beta Coefficient") + xlab("CTRA term") +
+  My_Theme + theme(strip.text.x = element_text(size = 17, colour = "Black"))
+
+plot_gsva
+
+
+```
+
+
+
+####################### Semantic Clustering
+```{r Plot GSVA Semantic Clustering -- race effect size}
+
+df_race <- GSVA_results$GSVA_race %>% tibble::rownames_to_column("Pathway") 
+# This is a cool dplyr function that separates columns
+df_race <- tidyr::separate(df_race, Pathway, into = c("term_name", "term_id"), sep = " \\(")
+df_race$term_id <- gsub("[)]", "", df_race$term_id)
+
+df_race_up = df_race %>% dplyr::filter(logFC > 0.25, adj.P.Val < 0.05) 
+df_race_up = head(arrange(df_race_up, adj.P.Val), 50) #43
+
+df_race_down = df_race %>% dplyr::filter(logFC < -0.25, adj.P.Val < 0.05) 
+df_race_down  = head(arrange(df_race_down, adj.P.Val), 50) #23
+
+# Run the hierarchical ontology analysis
+hierarchy_UP <- runGOAnalysis(df_race_up)
+hierarchy_DOWN <- runGOAnalysis(df_race_down)
+
+```
+
+```{r Plot GSVA Semantic Clustering -- interaction effect size}
+
+df <- GSVA_results$GSVA_inter %>% tibble::rownames_to_column("Pathway") 
+# This is a cool dplyr function that separates columns
+df <- tidyr::separate(df, Pathway, into = c("term_name", "term_id"), sep = " \\(")
+df$term_id <- gsub("[)]", "", df$term_id)
+
+df_up = df %>% dplyr::filter(logFC > 0.25 & adj.P.Val < 0.05) 
+df_up = head(arrange(df_up, adj.P.Val), 50)
+
+df_down = df %>% dplyr::filter(logFC < -0.25 & adj.P.Val < 0.05) 
+df_down  = head(arrange(df_down, adj.P.Val), 50)
+
+# Run the hierarchical ontology analysis
+hierarchy_UP <- runGOAnalysis(df_up)
+hierarchy_DOWN <- runGOAnalysis(df_down)
+
+```
+
+```{r Count the Statistically Significant Pathways}
+
+sig_race <- df_race %>% dplyr::filter(abs(logFC) > 2 & adj.P.Val < 0.05)
+sig_inter<- df %>% dplyr::filter(abs(logFC) > 0.25 & adj.P.Val < 0.05)
+
+```
+
+
+

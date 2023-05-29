@@ -1,0 +1,454 @@
+---
+title: "GSVA_driver"
+output: html_document
+---
+
+
+Shu'ayb's GSVA functions
+
+
+
+######################## CLEANING THE EXPRESSION MATRIX
+```{r hgnc_annot -- converts ensembl expression matrix rows into hgnc symbols}
+
+hgnc_annot <- function(df) {
+  library(tibble)
+  library(org.Hs.eg.db)
+    df1 <- tibble::rownames_to_column(geneCountsMerged, "Gene_ID")
+    df1$Gene_ID <- sub("\\.\\d+", "", df1$Gene_ID)
+    genes = c(df1$Gene_ID)
+      df2 <- select(org.Hs.eg.db, keys = genes, keytype = "ENSEMBL", columns = c("ENSEMBL", "SYMBOL"))
+      df2 = df2[!duplicated(df2$ENSEMBL), ]
+        df3 <- df2 %>% dplyr::rename(Gene_ID = ENSEMBL)
+        df4 <- dplyr::left_join(df3, df1, by = "Gene_ID") %>%
+      dplyr::select(SYMBOL, everything()) %>%
+      dplyr::select(-c(Gene_ID)) %>% tidyr::drop_na() %>% as.data.frame()
+      df5 <- df4 %>%
+    dplyr::distinct(SYMBOL, .keep_all = TRUE) %>%
+    tibble::column_to_rownames("SYMBOL") 
+  # df5 = df5 %>% head(200)  
+  df6 = df5 %>% as.data.frame()
+return(df6)
+}
+
+```
+
+
+
+######################## CREATING THE GENE SETS
+```{r read_geneset -- reads a text file of gene sets}
+
+read_geneset = function(path_to_gset){
+  library(GSA)
+  bp = GSA.read.gmt(path_to_gset)
+  out = bp$genesets
+  out = lapply(1:length(out), function(x) out[[x]][out[[x]]!=''])
+  names(out) = bp$geneset.names
+  return(out)
+}
+
+```
+
+```{r read_geneset_CTRA -- reads a text file of gene sets and adds CTRA sets}
+
+read_geneset_CTRA <- function(path_to_gset) {
+  
+library(GSA)
+  
+proinflammation <- c("IL1A", "IL1B", "IL6", "IL8", "TNF", "PTGS1", 
+                     "PTGS2", "FOS", "FOSB", "FOSL1", "FOSL2", "JUN", 
+                     "JUNB", "JUND", "NFKB1", "NFKB2", "REL", "RELA", 
+                     "RELB")    
+  
+interferon <- c("GBP1", "IFI16", "IFI27", "IFI27L2", "IFI27L2", "IFI30", "IFI35", 
+                "IFI44", "IFI44L", "IFI6", "IFIH1", "IFIT1","IFIT2", "IFIT3","IFIT5", 
+                "IFIT1L", "IFITM1–3", "IFITM2", "IFITM3", "IFITM4P", "IFITM5", "IFNB1", 
+                "IRF2", "IRF7", "IRF8", "MX1", "MX2", "OAS1", "OAS2", "OAS3", "OASL", "IGJ", "IGLL1", 
+                "IGLL3")  
+
+  bp = GSA.read.gmt("/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Data Frames/Ontology df/GO_Biological_Process_2021.txt")
+  out = bp$genesets
+    out = lapply(1:length(out), function(x) out[[x]][out[[x]]!=''])
+      names(out) = bp$geneset.names
+    # Create a new list that includes proinflammation and interferon
+    new_list <- list(proinflammation = proinflammation, interferon = interferon)
+# Combine the new list with the existing out list
+ctra_list <- c(out, new_list)
+
+# Return the modified out list
+return(ctra_list)
+
+}
+
+```
+
+
+
+######################## RUNNING THE GSVA
+```{r run_GSVA -- runs the GSVA}
+
+# This function reads a list of ontologies with their gene consituents
+
+# 3 arguments
+# 1 -- path to the frame
+# 2 -- path to the frame
+# 3 -- metadata sheet with variables
+
+run_GSVA <- function(expr_data, gene_sets, metadata) {
+
+# Load libraries -- you will need all of these
+library(limma)
+library(GSVA)
+library(tidyverse)
+library(data.table)
+library(compositions)
+library(kableExtra)
+library(plyr)
+library(cowplot)
+library(gridExtra)
+library(limma)
+library(edgeR)
+library(ggplot2)
+library(gplots)
+library(pheatmap)
+library(foreach)
+library(doParallel)
+  
+# Rename values
+metadata = metadata %>%
+mutate(Dx = as.character(Dx)) %>%
+mutate(Ethnicity = case_when(Ethnicity == "AA" ~ "Black", 
+                             Ethnicity == "C" ~ "White"))
+  
+all(rownames(metadata) == colnames(expr_data)) 
+  # Make the factor levels
+  metadata$Ethnicity <- factor(metadata$Ethnicity, levels = c("White", "Black"))
+  metadata$Dx <- factor(metadata$Dx, levels = c("Control", "SCZ"))
+  
+    # Calculate library sizes for each sample
+    # Only keep positive libraries
+    library_sizes <- colSums(expr_data)
+    keep_samples <- library_sizes > 0 & is.finite(library_sizes)
+    expr_data_filtered <- expr_data[, keep_samples]
+  
+    # Filter genes based on CPM threshold of 0.5
+    isexpr <- rowSums(cpm(expr_data_filtered) > 0.5) >= 0.3 * ncol(expr_data_filtered)
+    # Filter lowly expressed genes from expression matrix
+    expr_data_filtered <- expr_data_filtered[isexpr, ]
+  
+    # Normalize 
+    dge <- DGEList(expr_data_filtered) 
+    dge <- calcNormFactors(dge, "none") # TMM
+    
+    # Perform voom normalization
+    cpm_filtered <- cpm(expr_data_filtered)
+    y <- DGEList(counts = expr_data_filtered)
+    y <- y[rowSums(cpm_filtered > 0.5) > 0,]
+    y <- calcNormFactors(y)
+    
+    # Create design matrix
+    metadata_design <- model.matrix(~ metadata$Ethnicity + metadata$Dx + metadata$Ethnicity*metadata$Dx + scale(metadata$RIN) + scale(metadata$IntronicRate) + scale(metadata$IntragenicRate) + scale(metadata$IntergenicRate) + scale(metadata$rRNARate) + metadata$Institution*(metadata$ageOfDeath + metadata$cellFrac_ilr_1 + metadata$cellFrac_ilr_2 + metadata$cellFrac_ilr_3), data = metadata)
+    
+# Run the model    
+metadata_design <- as.data.frame(metadata_design)
+  design_matrix <- model.matrix(~ ., data = metadata_design)
+  # Remove batch effects from expression matrix
+  y <- removeBatchEffect(y, batch = metadata$Batch)
+# Perform voom transformation
+v <- voom(y, design_matrix, plot = FALSE)
+
+# Run the GSVA and time it (usually takes ~ 5 min)
+# mx.diff = TRUE bc we need normalized scores for limma
+# parallel.sz = how many processors you want to use (each set's scores is calculated individually so you can code in parallel)
+start_time <- Sys.time()
+enrichment_sets <- GSVA::gsva(v$E, gene_sets, mx.diff = TRUE, parallel.sz = 2, 
+                min.sz = 10, max.sz = 150, abs.ranking = FALSE, method = "gsva", 
+                verbose = FALSE)
+end_time <- Sys.time()
+cat("Time taken to complete: ", end_time - start_time)
+  
+# Normalize the expression data (optional)
+my_df_norm <- t(scale(t(enrichment_sets)))
+  
+# Run limma and extract the contrasts you want to see
+
+# Run differential pathway analysis using limma
+fit <- lmFit(my_df_norm, design_matrix)
+fit <- eBayes(fit)
+
+# Extract differential pathways with adjusted p-value < 0.05 and logFC > 1
+# Coef = 1 indicates the first covariate
+sig_pathways_race <- topTable(fit, coef=1, number=Inf, adjust.method="fdr", sort.by="none")
+sig_pathways_dx <- topTable(fit, coef=2, number=Inf, adjust.method="fdr", sort.by="none")
+sig_pathways_inter <- topTable(fit, coef=3, number=Inf, adjust.method="fdr", sort.by="none")
+
+# Return the results
+return(list(GSVA_race = sig_pathways_race, 
+            GSVA_dx = sig_pathways_dx, 
+            GSVA_inter = sig_pathways_inter, 
+            normalized_scores = my_df_norm))
+}
+
+```
+
+
+
+######################## VOLCANO PLOTTING (log base 10) 
+```{r plot_volcano_race -- creates a volcano plot for race term}
+
+plot_volcano_race <- function(df, xlim, ylim) {
+  
+  
+  df = as.data.frame(GSVA_results$GSVA_race)
+  xlim = c(-4, 4)
+  ylim = c(0, 17)
+  
+  
+  library(ggplot2)
+  library(dplyr)
+  library(ggrepel)
+  
+  df$direction <- "NO"
+  df$direction[df$logFC < -0.25 & df$adj.P.Val < 0.05] <- "DOWN"
+  df$direction[df$logFC > 0.25 & df$adj.P.Val < 0.05] <- "UP"
+  pathways <- as.data.frame(tibble::rownames_to_column(df, "Pathway"))
+  volcano_plot <- ggplot(data=pathways, aes(x=logFC, 
+                                            y=-log10(P.Value),
+                                            fill = direction, 
+                                            color = direction,
+                                            label=Pathway)) +
+    geom_point() + theme_bw() + 
+    theme(legend.position="none") + 
+    scale_color_manual(values=c("blue", "black", "red")) +
+    ylab('-Log10(p-val)') + xlim(xlim) + ylim(ylim) + 
+    xlab("Log2FC") + My_Theme
+  
+  df <- pathways %>%
+    dplyr::filter(Pathway %in% c("positive regulation of MAP kinase activity (GO:0043406)",
+                                                        "natural killer cell activation (GO:0030101)",
+                                                        "negative regulation of oxidative stress-induced cell death (GO:1903202)",
+                                                        "positive regulation of neutrophil migration (GO:1902624)"))
+  
+GSVA_volcano = volcano_plot +  
+ggrepel::geom_text_repel(data=df, aes(label=Pathway, 
+                                             hjust = ifelse(logFC > 0, 1, -0.3),
+                                            nudge_x = ifelse(logFC > 0, 2, -2)),
+                             colour = "black", max.overlaps = 6, force = 200, 
+                             force_pull = 900, max.time = 15, box.padding = 2,
+                             point.padding = 1, segment.curvature = -0.1, 
+                             segment.linetype = 1, segment.angle = 20, 
+                             arrow = arrow(length = unit(0.01, "npc"), 
+                                           type = "closed", ends = "last"))
+  
+return(volcano_plot)
+}
+
+```
+
+```{r plot_volcano_inter -- creates a volcano plot for interaction term}
+
+plot_volcano_inter <- function(df, xlim, ylim) {
+  
+  library(ggplot2)
+  library(dplyr)
+  library(ggrepel)
+    
+  df$direction <- "NO"
+  df$direction[df$logFC < -0.25 & df$adj.P.Val < 0.05] <- "DOWN"
+  df$direction[df$logFC > 0.25 & df$adj.P.Val < 0.05] <- "UP"
+  pathways <- tibble::rownames_to_column(df, "Pathway")
+  volcano_plot <- ggplot(data=pathways, aes(x=logFC, 
+                                            y=-log10(P.Value),
+                                            fill = direction, 
+                                            color = direction,
+                                            label=Pathway)) +
+    geom_point() + theme_bw() + 
+    theme(legend.position="none") + 
+    scale_color_manual(values=c("blue", "black", "red")) +
+    ylab('-Log10(p-val)') + xlim(xlim) + ylim(ylim) + 
+    xlab("Log2FC") + My_Theme
+  
+  top_50 <- pathways %>%
+    dplyr::filter(adj.P.Val < 0.05 & logFC > 0) %>% 
+    dplyr::arrange(desc(logFC)) %>%
+    dplyr::slice_head(n = 16)
+  bot_50 <- pathways %>%
+    dplyr::filter(adj.P.Val < 0.05 & logFC < 0) %>% 
+    dplyr::arrange(logFC) %>%
+    dplyr::slice_head(n = 17)
+  genes <- rbind(top_50, bot_50)
+  
+ # GSVA_volcano = volcano_plot +  
+  #  ggrepel::geom_text_repel(data=genes, aes(label=Pathway, 
+   #                                           hjust = ifelse(logFC > 0, 1, -0.3),
+    #                                          nudge_x = ifelse(logFC > 0, 2, -2)),
+     #                        colour = "black", max.overlaps = 0, 
+      #                       max.iter = 2000, force = 2, 
+       #                      force_pull = 1, max.time = 15, box.padding = 0.7,
+        #                     point.padding = 2, segment.curvature = -0.1, 
+         #                    segment.linetype = 1, segment.angle = 20, 
+          #                   arrow = arrow(length = unit(0.01, "npc"), 
+           #                                type = "closed", ends = "last"))
+
+  return(volcano_plot)
+}
+
+
+```
+
+
+
+####################### ENRICHMENT SCORE PLOTTING 
+```{r plot_enrichment_race -- plots enrichment scores across race}
+
+
+plot_enrichment_race <- function(GSVA_term_effects, GSVA_normalized_scores, METADATA, pathways) {
+
+library(ggplot2)
+library(ggh4x)
+
+  inter_up <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC > 0.25)
+  inter_down <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC < -0.25)
+  
+  scores = GSVA_normalized_scores %>% tibble::rownames_to_column("Pathway")
+  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(df_scores), names_to = "SampleID", 
+                                   values_to = "Score") %>% dplyr::select('Pathway', 
+                                                                          'SampleID',
+                                                                          'Score')
+
+  df_meta <- dplyr::left_join(scores, METADATA, by = "SampleID")
+  colnames(df_meta)
+
+  library("stringi")
+  library("ggpubr")
+
+  plot_df <- df_meta %>% 
+    dplyr::filter(Pathway %in% pathways) 
+  plot_df = plot_df %>% mutate(Ethnicity = case_when(Ethnicity == "AA" ~ "Black", Ethnicity == "C" ~ "White")) 
+
+  plot_df$Ethnicity <- factor(plot_df$Ethnicity, levels = c("White", "Black"))
+
+  plot_gsva <- ggplot(plot_df, aes(x = Ethnicity, y = log2(Score), fill = Ethnicity)) + 
+    geom_violin(size = 0.5) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    ylab ('GSVA Enrichment Score') +
+    xlab ('Reported Race') +
+    # labeller is the best it allows you more space :D
+    facet_grid(Cohort~Pathway,labeller = labeller(Pathway = label_wrap_gen(width = 25))) +
+    scale_fill_manual(values=c("#D3D3D3", "#4F4F4F"))
+
+  plot_gsva_stat <- plot_gsva  + 
+    geom_boxplot(color="black",fill = 'gray', 
+                 alpha=0.9, width=0.1, size = 0.3, outlier.size=3) + My_Theme + 
+    theme(strip.text.x = element_text(size = 10, colour = "Black"),
+          strip.text.y = element_text(size = 11, colour = "Black")) +
+    theme(text = element_text(size = 12))       
+
+  my_comparisons <- c("Control", "SCZ")
+
+  gsva_paths <- plot_gsva_stat  + 
+    stat_summary(fun = "median", colour = "blue", size = 2, geom = "point") + 
+    ggpubr::stat_compare_means(comparisons = my_comparisons)
+  
+  return(gsva_paths)
+}
+
+
+# Call your functions
+race_enrichment_scores <- plot_enrichment_race(GSVA_results$GSVA_race, 
+                                           as.data.frame(GSVA_results$normalized_scores), 
+                                           METADATA, 
+                                           pathways = c("positive regulation of MAP kinase activity (GO:0043406)",
+                                                        "natural killer cell activation (GO:0030101)",
+                                                        "negative regulation of oxidative stress-induced cell death (GO:1903202)",
+                                                        "positive regulation of neutrophil migration (GO:1902624)"))
+race_enrichment_scores
+
+
+```
+
+```{r plot_enrichment_interaction -- plots enrichment scores}
+
+plot_enrichment_interaction <- function(GSVA_term_effects, GSVA_normalized_scores, METADATA, pathways) {
+
+library(ggplot2)
+library(ggh4x)
+
+  inter_up <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC > 0.25)
+  inter_down <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC < -0.25)
+  
+  scores = GSVA_normalized_scores %>% tibble::rownames_to_column("Pathway")
+  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(df_scores), names_to = "SampleID", 
+                                   values_to = "Score") %>% dplyr::select('Pathway', 
+                                                                          'SampleID',
+                                                                          'Score')
+
+  df_meta <- dplyr::left_join(scores, METADATA, by = "SampleID")
+  colnames(df_meta)
+
+  library("stringi")
+  library("ggpubr")
+
+  plot_df <- df_meta %>% 
+    dplyr::filter(Pathway %in% pathways) 
+  plot_df = plot_df %>% mutate(Ethnicity = case_when(Ethnicity == "AA" ~ "Black", Ethnicity == "C" ~ "White"))
+  plot_df = plot_df %>% mutate(Dx = case_when(Dx == "Control" ~ "Ctrl", Dx == "SCZ" ~ "SCZ"))
+                               
+
+  plot_df$Ethnicity <- factor(plot_df$Ethnicity, levels = c("White", "Black"))
+
+  plot_gsva <- ggplot(plot_df, aes(x = Dx, y = log2(Score), fill = Ethnicity)) + 
+    geom_violin(size = 0.5) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    ylab ('GSVA Enrichment Score') +
+    xlab ('Diagnosis') +
+    ggh4x::facet_nested(Cohort ~ Pathway + Ethnicity,labeller = labeller(Pathway = label_wrap_gen(width = 25))) +
+    scale_fill_manual(values=c("#D3D3D3", "#4F4F4F")) + theme(plot.margin = margin(0.2, 0.2, 0.2, 0.2, "cm"))
+
+  plot_gsva_stat <- plot_gsva  + 
+    geom_boxplot(color="black",fill = 'gray', 
+                 alpha=0.9, width=0.1, size = 0.3, outlier.size=3) + My_Theme + 
+    theme(strip.text.x = element_text(size = 11, colour = "Black"),
+          strip.text.y = element_text(size = 11, colour = "Black")) +
+    theme(text = element_text(size = 12))       
+
+  my_comparisons <- c("Control", "SCZ")
+
+  gsva_paths <- plot_gsva_stat  + 
+    stat_summary(fun = "median", colour = "blue", size = 2, geom = "point") + 
+    ggpubr::stat_compare_means(comparisons = my_comparisons)
+  
+  return(gsva_paths)
+}
+
+```
+
+
+
+######################## HIERARCHAL GENE ONTOLOGY ANALYSIS
+```{r runGOAnalysis}
+
+runGOAnalysis <- function(df) {
+  # Load the org.Hs.eg.db and DOSE packages
+  library(org.Hs.eg.db)
+  library(DOSE)
+  library(rrvgo)
+  # Run the hierarchical ontology
+  simMatrix <- rrvgo::calculateSimMatrix(df$term_id,
+                                          orgdb="org.Hs.eg.db", 
+                                          ont="BP",
+                                          method="Rel") # check diff methods 
+    # Set the scores
+    scores <- setNames(-log10(df$adj.P.Val), df$term_id)
+    # Reduce simMatrix and plot
+    reducedTerms <- reduceSimMatrix(simMatrix,
+                                    scores,
+                                    threshold=0.7,
+                                    orgdb="org.Hs.eg.db")
+return(treemapPlot(reducedTerms))
+
+}
+
+```
