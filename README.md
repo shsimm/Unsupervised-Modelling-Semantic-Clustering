@@ -6,10 +6,10 @@ GSVA is derivative of a traditional differential expression technique, but inste
 
 There are **four** analyses 
  1) Gene Set Variation Analyses
- 2) Volcano Plotting
- 3) Enrcihment scores from the GSVA 
- 4) CTRA effect sizes across terms
+ 2) Volcano Plotting of GSVA Effect Sizes 
+ 3) Plotting GSVA Enrichment Scores Stratified by Variables
+ 4) CTRA Effect Sizes Across Terms
 
 There are **two** files 
-1) Driver (.rmd with functions)
+1) Driver Script (.rmd with functions)
 2) Script (.rmd calling the functions)
