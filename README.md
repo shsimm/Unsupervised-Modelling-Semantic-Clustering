@@ -1,6 +1,8 @@
 # Gene Set Variation Analysis (GSVA)
 
-This analysis conducts a Gene Set Variation Analysis using the 'GSVA' package (Hänzelmann et al., 2013). This is a differential expression technique used to swap out the traditional _gene expression_ (outcome) - preditor + model with instead _gene set variation_ (outcome) - preditor + model
+This analysis conducts a Gene Set Variation Analysis using the 'GSVA' package (Hänzelmann et al., 2013). 
+
+GSVA is derivative of a traditional differential expression technique, but instead of a traditional _gene expression_ (outcome) - preditor + model design with you have instead _gene set variation_ (outcome). This technique uses a random walk approach. 
 
 There are **four** analyses 
  1) Gene Set Variation Analyses
