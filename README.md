@@ -1,6 +1,6 @@
 # Gene Set Variation Analysis (GSVA)
 
-This analysis conducts a Gene Set Variation Analysis using the 'GSVA' package (Hänzelmann et al., 2013). 
+This repositiry contains codde to run a Gene Set Variation Analysis using the 'GSVA' package (Hänzelmann et al., 2013). 
 
 GSVA is derivative of a traditional differential expression technique, but instead of a traditional _gene expression_ (outcome) - preditor + model design with you have instead _gene set variation_ (outcome). This technique uses a random walk approach. 
 
