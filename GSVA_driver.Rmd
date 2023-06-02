@@ -166,7 +166,6 @@ fit <- eBayes(fit)
 # Extract differential pathways with adjusted p-value < 0.05 and logFC > 1
 # Coef = 1 indicates the first covariate
 sig_pathways_race <- topTable(fit, coef=1, number=Inf, adjust.method="fdr", sort.by="none")
-sig_pathways_dx <- topTable(fit, coef=2, number=Inf, adjust.method="fdr", sort.by="none")
 sig_pathways_inter <- topTable(fit, coef=3, number=Inf, adjust.method="fdr", sort.by="none")
 
 # Return the results
@@ -216,16 +215,16 @@ plot_volcano_race <- function(df, xlim, ylim) {
                                                         "negative regulation of oxidative stress-induced cell death (GO:1903202)",
                                                         "positive regulation of neutrophil migration (GO:1902624)"))
   
-GSVA_volcano = volcano_plot +  
-ggrepel::geom_text_repel(data=df, aes(label=Pathway, 
-                                             hjust = ifelse(logFC > 0, 1, -0.3),
-                                            nudge_x = ifelse(logFC > 0, 2, -2)),
-                             colour = "black", max.overlaps = 6, force = 200, 
-                             force_pull = 900, max.time = 15, box.padding = 2,
-                             point.padding = 1, segment.curvature = -0.1, 
-                             segment.linetype = 1, segment.angle = 20, 
-                             arrow = arrow(length = unit(0.01, "npc"), 
-                                           type = "closed", ends = "last"))
+#GSVA_volcano = volcano_plot +  
+#ggrepel::geom_text_repel(data=df, aes(label=Pathway, 
+ #                                            hjust = ifelse(logFC > 0, 1, -0.3),
+  #                                          nudge_x = ifelse(logFC > 0, 2, -2)),
+   #                          colour = "black", max.overlaps = 6, force = 200, 
+    #                         force_pull = 900, max.time = 15, box.padding = 2,
+     #                        point.padding = 1, segment.curvature = -0.1, 
+      #                       segment.linetype = 1, segment.angle = 20, 
+       #                      arrow = arrow(length = unit(0.01, "npc"), 
+        #                                   type = "closed", ends = "last"))
   
 return(volcano_plot)
 }
