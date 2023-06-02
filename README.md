@@ -2,13 +2,7 @@
 
 This repositiry contains code to run a Gene Set Variation Analysis using the 'GSVA' package (Hänzelmann et al., 2013). 
 
-GSVA is derivative of a traditional differential expression technique, but instead of a traditional model:
-_gene expression_ (outcome) - preditor + model
-
-You instead employ:
-_gene set variation_ (outcome)
-
-The GSVA technique uses a random walk approach (Hänzelmann et al., 2013). 
+GSVA is derivative of a traditional differential expression technique, and provides enrichment scores of gene sets related to genes outside the set. These enrichment scores can then be used by limma. Please note thatGSVA  uses a random walk approach (Hänzelmann et al., 2013). 
 
 There are **five** analyses in this repository
  #1 Gene Set Variation Analyses
