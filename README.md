@@ -12,5 +12,5 @@ There are **five** analyses in this repository
  5) Plotting GSVA Controlled Transcriptional Response to Adversity (CTRA) Effect Sizes Across Terms
 
 There are **two** files 
-1) Driver Script (.rmd with functions)
-2) Script (.rmd calling the functions)
+1) Driver Script (GSVA.Rmd)
+2) Script (GSVA_driver.Rmd)
