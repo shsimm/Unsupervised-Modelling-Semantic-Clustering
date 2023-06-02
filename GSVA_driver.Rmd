@@ -36,19 +36,6 @@ return(df6)
 
 
 ######################## CREATING THE GENE SETS
-```{r read_geneset -- reads a text file of gene sets}
-
-read_geneset = function(path_to_gset){
-  library(GSA)
-  bp = GSA.read.gmt(path_to_gset)
-  out = bp$genesets
-  out = lapply(1:length(out), function(x) out[[x]][out[[x]]!=''])
-  names(out) = bp$geneset.names
-  return(out)
-}
-
-```
-
 ```{r read_geneset_CTRA -- reads a text file of gene sets and adds CTRA sets}
 
 read_geneset_CTRA <- function(path_to_gset) {
