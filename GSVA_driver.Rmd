@@ -127,50 +127,58 @@ all(rownames(metadata) == colnames(expr_data))
     dge <- DGEList(expr_data_filtered) 
     dge <- calcNormFactors(dge, "none") # TMM
     
-    # Perform voom normalization
-    cpm_filtered <- cpm(expr_data_filtered)
-    y <- DGEList(counts = expr_data_filtered)
-    y <- y[rowSums(cpm_filtered > 0.5) > 0,]
-    y <- calcNormFactors(y)
+      # Perform voom normalization
+      cpm_filtered <- cpm(expr_data_filtered)
+      y <- DGEList(counts = expr_data_filtered)
+      y <- y[rowSums(cpm_filtered > 0.5) > 0,]
+      y <- calcNormFactors(y)
+      
+      # Create design matrix
+      metadata_design <- model.matrix(~ metadata$Ethnicity + metadata$Dx + 
+                                        metadata$Ethnicity*metadata$Dx + 
+                                        scale(metadata$RIN) + scale(metadata$IntronicRate) + 
+                                        scale(metadata$IntragenicRate) + 
+                                        scale(metadata$IntergenicRate) + 
+                                        scale(metadata$rRNARate) + 
+                                        metadata$Institution*(metadata$ageOfDeath + 
+                                                                metadata$cellFrac_ilr_1 + 
+                                                                metadata$cellFrac_ilr_2 + 
+                                                                metadata$cellFrac_ilr_3), 
+                                      data = metadata)
     
-    # Create design matrix
-    metadata_design <- model.matrix(~ metadata$Ethnicity + metadata$Dx + metadata$Ethnicity*metadata$Dx + scale(metadata$RIN) + scale(metadata$IntronicRate) + scale(metadata$IntragenicRate) + scale(metadata$IntergenicRate) + scale(metadata$rRNARate) + metadata$Institution*(metadata$ageOfDeath + metadata$cellFrac_ilr_1 + metadata$cellFrac_ilr_2 + metadata$cellFrac_ilr_3), data = metadata)
-    
-# Run the model    
-metadata_design <- as.data.frame(metadata_design)
-  design_matrix <- model.matrix(~ ., data = metadata_design)
-  # Remove batch effects from expression matrix
-  y <- removeBatchEffect(y, batch = metadata$Batch)
-# Perform voom transformation
-v <- voom(y, design_matrix, plot = FALSE)
+      # Run the model    
+      metadata_design <- as.data.frame(metadata_design)
+        design_matrix <- model.matrix(~ ., data = metadata_design)
+        # Remove batch effects from expression matrix
+        y <- removeBatchEffect(y, batch = metadata$Batch)
+      # Perform voom transformation
+      v <- voom(y, design_matrix, plot = FALSE)
 
-# Run the GSVA and time it (usually takes ~ 5 min)
-# mx.diff = TRUE bc we need normalized scores for limma
-# parallel.sz = how many processors you want to use (each set's scores is calculated individually so you can code in parallel)
-start_time <- Sys.time()
-enrichment_sets <- GSVA::gsva(v$E, gene_sets, mx.diff = TRUE, parallel.sz = 2, 
-                min.sz = 10, max.sz = 150, abs.ranking = FALSE, method = "gsva", 
-                verbose = FALSE)
-end_time <- Sys.time()
-cat("Time taken to complete: ", end_time - start_time)
+        # Run the GSVA and time it (usually takes ~ 5 min)
+        # mx.diff = TRUE bc we need normalized scores for limma
+        # parallel.sz = how many processors you want to use (each set's scores is calculated individually so you can code in parallel)
+        start_time <- Sys.time()
+        enrichment_sets <- GSVA::gsva(v$E, gene_sets, mx.diff = TRUE, parallel.sz = 2, 
+                        min.sz = 10, max.sz = 150, abs.ranking = FALSE, method = "gsva", 
+                        verbose = FALSE)
+        end_time <- Sys.time()
+        cat("Time taken to complete: ", end_time - start_time)
+          
+  # Normalize the expression data (optional)
+  my_df_norm <- t(scale(t(enrichment_sets)))
   
-# Normalize the expression data (optional)
-my_df_norm <- t(scale(t(enrichment_sets)))
-  
-# Run limma and extract the contrasts you want to see
+  # Run limma and extract the contrasts you want to see
+  # Run differential pathway analysis using limma
+  fit <- lmFit(my_df_norm, design_matrix)
+  fit <- eBayes(fit)
 
-# Run differential pathway analysis using limma
-fit <- lmFit(my_df_norm, design_matrix)
-fit <- eBayes(fit)
+  # Extract differential pathways with adjusted p-value < 0.05 and logFC > 1
+  # Coef = 1 indicates the first covariate
+  sig_pathways_race <- topTable(fit, coef=1, number=Inf, adjust.method="fdr", sort.by="none")
+  sig_pathways_inter <- topTable(fit, coef=3, number=Inf, adjust.method="fdr", sort.by="none")
 
-# Extract differential pathways with adjusted p-value < 0.05 and logFC > 1
-# Coef = 1 indicates the first covariate
-sig_pathways_race <- topTable(fit, coef=1, number=Inf, adjust.method="fdr", sort.by="none")
-sig_pathways_inter <- topTable(fit, coef=3, number=Inf, adjust.method="fdr", sort.by="none")
-
-# Return the results
+# Return the results in a list
 return(list(GSVA_race = sig_pathways_race, 
-            GSVA_dx = sig_pathways_dx, 
             GSVA_inter = sig_pathways_inter, 
             normalized_scores = my_df_norm))
 }
