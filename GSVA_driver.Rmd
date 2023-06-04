@@ -17,7 +17,7 @@ hgnc_annot <- function(df) {
     df1 <- tibble::rownames_to_column(geneCountsMerged, "Gene_ID")
     df1$Gene_ID <- sub("\\.\\d+", "", df1$Gene_ID)
     genes = c(df1$Gene_ID)
-      df2 <- select(org.Hs.eg.db, keys = genes, keytype = "ENSEMBL", columns = c("ENSEMBL", "SYMBOL"))
+      df2 <- dplyr::select(org.Hs.eg.db, keys = genes, keytype = "ENSEMBL", columns = c("ENSEMBL", "SYMBOL"))
       df2 = df2[!duplicated(df2$ENSEMBL), ]
         df3 <- df2 %>% dplyr::rename(Gene_ID = ENSEMBL)
         df4 <- dplyr::left_join(df3, df1, by = "Gene_ID") %>%
@@ -347,18 +347,6 @@ library(ggh4x)
   
   return(gsva_paths)
 }
-
-
-# Call your functions
-race_enrichment_scores <- plot_enrichment_race(GSVA_results$GSVA_race, 
-                                           as.data.frame(GSVA_results$normalized_scores), 
-                                           METADATA, 
-                                           pathways = c("positive regulation of MAP kinase activity (GO:0043406)",
-                                                        "natural killer cell activation (GO:0030101)",
-                                                        "negative regulation of oxidative stress-induced cell death (GO:1903202)",
-                                                        "positive regulation of neutrophil migration (GO:1902624)"))
-race_enrichment_scores
-
 
 ```
 
