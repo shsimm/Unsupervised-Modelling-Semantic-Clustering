@@ -6,7 +6,7 @@ chunk_output_type: inline
 chunk_output_type: inline
 ---
 
-######################## Set up for the analysis
+######################## Work Space Setup
 ```{r Required Packages}
 
 library('viridis')
@@ -27,16 +27,6 @@ library("foreach")
 library("doParallel")
 library("GSVA")
 library("org.Hs.eg.db")
-
-```
-
-```{r Plot Themes}
-
-My_Theme = theme(
-  axis.title.x = element_text(size = 16),
-  axis.text.y = element_text(size = 14),
-  axis.text.x = element_text(size = 14),
-  axis.title.y = element_text(size = 16))
 
 ```
 
@@ -69,10 +59,8 @@ GSVA_results <- run_GSVA(expr_data, bp_ctra, METADATA)
 ######################## Volanno Plots of the GSVA
 ```{r Volcano Plot - Reported Race}
 
-volcano_race <- plot_volcano_race(GSVA_results$GSVA_race, xlim = c(-5, 5), ylim = c(0, 18))
+volcano_race_gsva <- plot_volcano_race(GSVA_results$GSVA_race, xlim = c(-5, 5), ylim = c(0, 18))
 print(volcano_race)
-
-ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
 
 ```
 
@@ -81,7 +69,6 @@ ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/D
 volcano_inter <- plot_volcano_inter(GSVA_results$GSVA_inter, xlim = c(-0.6, 0.6), ylim = c(0, 11))
 print(volcano_inter)
 
-ggsave('volcano_inter.png', width = 7.5, height = 7, path = "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction/Mega-Analysis")
 
 ```
 
@@ -98,8 +85,6 @@ race_enrichment_scores <- plot_enrichment_race(GSVA_results$GSVA_race,
                                                         "body fluid secretion (GO:0007589)"))
 race_enrichment_scores
 
-ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
-
 ```
 
 ```{r Plot violin plots of gene sets}
@@ -113,8 +98,6 @@ inter_enrichment_scores <- plot_enrichment_interaction(GSVA_results$GSVA_inter,
                                                         "organonitrogen compound biosynthetic process (GO:1901566)"))
 
 inter_enrichment_scores
-
-ggsave("inter_enrichment_scores.png", width = 9, height = 8, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction")
 
 ```
 
@@ -194,4 +177,17 @@ sig_inter<- df %>% dplyr::filter(abs(logFC) > 0.25 & adj.P.Val < 0.05)
 ```
 
 
+
+######################## Save the Plots
+```{r}
+
+#ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+
+#ggsave('volcano_inter.png', width = 7.5, height = 7, path = "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction/Mega-Analysis")
+
+# ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+
+# ggsave("inter_enrichment_scores.png", width = 9, height = 8, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction")
+
+```
 
