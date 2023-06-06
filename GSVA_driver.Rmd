@@ -17,7 +17,7 @@ hgnc_annot <- function(df) {
     df1 <- tibble::rownames_to_column(geneCountsMerged, "Gene_ID")
     df1$Gene_ID <- sub("\\.\\d+", "", df1$Gene_ID)
     genes = c(df1$Gene_ID)
-      df2 <- dplyr::select(org.Hs.eg.db, keys = genes, keytype = "ENSEMBL", columns = c("ENSEMBL", "SYMBOL"))
+      df2 <- AnnotationDbi::select(org.Hs.eg.db, keys = genes, keytype = "ENSEMBL", columns = c("ENSEMBL", "SYMBOL"))
       df2 = df2[!duplicated(df2$ENSEMBL), ]
         df3 <- df2 %>% dplyr::rename(Gene_ID = ENSEMBL)
         df4 <- dplyr::left_join(df3, df1, by = "Gene_ID") %>%
