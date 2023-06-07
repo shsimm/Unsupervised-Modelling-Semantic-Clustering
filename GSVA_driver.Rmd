@@ -83,6 +83,10 @@ return(ctra_list)
 
 run_GSVA <- function(expr_data, gene_sets, metadata) {
 
+    expr_data = expr_data
+    gene_sets= bp_ctra
+    metadata=  METADATA
+
 # Load libraries -- you will need all of these
 library(limma)
 library(GSVA)
@@ -111,6 +115,7 @@ all(rownames(metadata) == colnames(expr_data))
   # Make the factor levels
   metadata$Ethnicity <- factor(metadata$Ethnicity, levels = c("White", "Black"))
   metadata$Dx <- factor(metadata$Dx, levels = c("Control", "SCZ"))
+  metadata$Sex <- factor(metadata$Sex, levels = c("XY", "XX"))
   
     # Calculate library sizes for each sample
     # Only keep positive libraries
@@ -134,9 +139,12 @@ all(rownames(metadata) == colnames(expr_data))
       y <- calcNormFactors(y)
       
       # Create design matrix
-      metadata_design <- model.matrix(~ metadata$Ethnicity + metadata$Dx + 
+      metadata_design <- model.matrix(~ metadata$Ethnicity + 
+                                        metadata$Dx + 
                                         metadata$Ethnicity*metadata$Dx + 
-                                        scale(metadata$RIN) + scale(metadata$IntronicRate) + 
+                                        metadata$Sex + 
+                                        scale(metadata$RIN) + 
+                                        scale(metadata$IntronicRate) + 
                                         scale(metadata$IntragenicRate) + 
                                         scale(metadata$IntergenicRate) + 
                                         scale(metadata$rRNARate) + 
@@ -305,7 +313,7 @@ library(ggh4x)
   inter_down <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC < -0.25)
   
   scores = GSVA_normalized_scores %>% tibble::rownames_to_column("Pathway")
-  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(df_scores), names_to = "SampleID", 
+  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(GSVA_normalized_scores), names_to = "SampleID", 
                                    values_to = "Score") %>% dplyr::select('Pathway', 
                                                                           'SampleID',
                                                                           'Score')
@@ -361,7 +369,7 @@ library(ggh4x)
   inter_down <- GSVA_term_effects %>% dplyr::filter(adj.P.Val < 0.05 & logFC < -0.25)
   
   scores = GSVA_normalized_scores %>% tibble::rownames_to_column("Pathway")
-  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(df_scores), names_to = "SampleID", 
+  scores = scores %>% tidyr::pivot_longer(cols = 2:ncol(GSVA_normalized_scores), names_to = "SampleID", 
                                    values_to = "Score") %>% dplyr::select('Pathway', 
                                                                           'SampleID',
                                                                           'Score')

@@ -60,7 +60,7 @@ GSVA_results <- run_GSVA(expr_data, bp_ctra, METADATA)
 ```{r Volcano Plot - Reported Race}
 
 volcano_race_gsva <- plot_volcano_race(GSVA_results$GSVA_race, xlim = c(-5, 5), ylim = c(0, 18))
-print(volcano_race)
+print(volcano_race_gsva)
 
 ```
 
@@ -68,7 +68,6 @@ print(volcano_race)
 
 volcano_inter <- plot_volcano_inter(GSVA_results$GSVA_inter, xlim = c(-0.6, 0.6), ylim = c(0, 11))
 print(volcano_inter)
-
 
 ```
 
