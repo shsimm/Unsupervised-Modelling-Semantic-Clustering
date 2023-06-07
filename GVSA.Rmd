@@ -170,8 +170,8 @@ hierarchy_DOWN <- runGOAnalysis(df_down)
 
 ```{r Count the Statistically Significant Pathways}
 
-sig_race <- df_race %>% dplyr::filter(abs(logFC) > 2 & adj.P.Val < 0.05)
-sig_inter<- df %>% dplyr::filter(abs(logFC) > 0.25 & adj.P.Val < 0.05)
+sig_race <- df_race %>% dplyr::filter(adj.P.Val < 0.05)
+sig_inter<- df %>% dplyr::filter(adj.P.Val < 0.05)
 
 ```
 
