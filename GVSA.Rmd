@@ -81,7 +81,8 @@ race_enrichment_scores <- plot_enrichment_race(GSVA_results$GSVA_race,
                                            pathways = c("regulation of neuronal synaptic plasticity (GO:0048168)",
                                                         "regulation of postsynaptic neurotransmitter receptor activity (GO:0098962)",
                                                         "regulation of hydrogen peroxide-induced cell death (GO:1903205)",
-                                                        "body fluid secretion (GO:0007589)"))
+                                                        "body fluid secretion (GO:0007589)",
+                                                        "interferon"))
 race_enrichment_scores
 
 ```
@@ -178,13 +179,13 @@ sig_inter<- df %>% dplyr::filter(adj.P.Val < 0.05)
 
 
 ######################## Save the Plots
-```{r}
+```{r Save the Plots}
 
-#ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
 
-#ggsave('volcano_inter.png', width = 7.5, height = 7, path = "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction/Mega-Analysis")
+ggsave('volcano_inter.png', width = 7, height = 7, path = "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction/Mega-Analysis")
 
-# ggsave("volcano_race.png", width = 7, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
+ ggsave("race_enrichment_scores.png", width = 8.5, height = 7, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Race")
 
 # ggsave("inter_enrichment_scores.png", width = 9, height = 8, path = "/Users/shuaybsimmons/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Plots/Interaction")
 
