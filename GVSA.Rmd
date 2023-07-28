@@ -69,6 +69,9 @@ print(volcano_race_gsva)
 volcano_inter <- plot_volcano_inter(GSVA_results$GSVA_inter, xlim = c(-0.6, 0.6), ylim = c(0, 11))
 print(volcano_inter)
 
+gsva_interaction <- GSVA_results$GSVA_inter %>% filter(adj.P.Val < 0.05) %>% arrange(adj.P.Val)
+
+write.csv(gsva_interaction , "~/Desktop/School/UofT MSc Medical Science/Research/Thesis Research/Data Frames\\gsva_interaction.csv",row.names = TRUE)
 ```
 
 
