@@ -8,7 +8,7 @@ There are **five** analyses in this repository
  1) Gene Set Variation Analyses
  2) Volcano Plotting of GSVA Effect Sizes 
  3) Plotting GSVA Enrichment Scores Stratified by Variables (Dx, Reported Race, Institution)
- 4) Semantic Clustering of top 50 Differentially Enriched Gene Sets (Up- and Down-Regulated)
+ 4) Unsupervised (ML) Semantic Clustering of top 50 Differentially Enriched Gene Sets (Up- and Down-Regulated)
  5) Plotting GSVA Controlled Transcriptional Response to Adversity (CTRA) Effect Sizes Across Terms
 
 There are **two** files 
