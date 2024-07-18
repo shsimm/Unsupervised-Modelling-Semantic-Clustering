@@ -3,9 +3,7 @@ title: "GSVA_driver"
 output: html_document
 ---
 
-
-Shu'ayb's GSVA functions
-
+Shay's GSVA functions
 
 
 ######################## CLEANING THE EXPRESSION MATRIX
