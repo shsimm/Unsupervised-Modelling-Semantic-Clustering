@@ -1,9 +1,7 @@
 ---
 title:"GSVA"
+Author: "Shay Simmons"
 output: html_document
-editor_options: 
-chunk_output_type: inline
-chunk_output_type: inline
 ---
 
 ######################## Work Space Setup

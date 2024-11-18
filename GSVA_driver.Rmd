@@ -1,9 +1,10 @@
 ---
 title: "GSVA_driver"
+Author: "Shay Simmons"
 output: html_document
 ---
 
-Shay's GSVA functions
+Shay's GSVA functions:
 
 
 ######################## CLEANING THE EXPRESSION MATRIX
